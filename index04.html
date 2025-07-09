@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -668,7 +668,7 @@
         { id: 11, name: '挂式呼叫器', entryTime: '2023-03-15T11:30:00', inventory: 6, status: '正常' },
         { id: 12, name: '救助记录仪', entryTime: '2023-05-25T16:45:00', inventory: 4, status: '正常' },
         { id: 13, name: '浸水检测', entryTime: '2023-06-10T13:20:00', inventory: 3, status: '正常' },
-        { id: 14, name: '生命体征探测器', entryTime: '2023-07-02T10:50:00', inventory: 5, status: '正常' }
+        { id: 84, name: '生命体征探测器2', entryTime: '2023-07-02T10:50:00', inventory: 5, status: '正常' }
       ],
       2: [
         { id: 1, name: '血压仪', entryTime: '2023-05-15T10:30:00', inventory: 3, status: '正常' },
@@ -870,7 +870,7 @@
             <button class="text-indigo-600 hover:text-indigo-900 mr-3 transition-colors edit-device-btn" data-id="${device.id}">
               <i class="fa fa-pencil mr-1"></i>编辑
             </button>
-            <button class="text-red-600 hover:text-red-900 transition-colors">
+            <button class="text-red-600 hover:text-red-900 transition-colors delete-device-btn" data-id="${device.id}">
               <i class="fa fa-trash mr-1"></i>删除
             </button>
           </td>
@@ -960,12 +960,18 @@
 
       // 打开模态框
       document.addEventListener('click', function(e) {
-        if (e.target.closest('.edit-device-btn')) {
-          const btn = e.target.closest('.edit-device-btn');
-          const deviceId = parseInt(btn.getAttribute('data-id'));
-          openEditModal(deviceId);
-        }
-      });
+          if (e.target.closest('.edit-device-btn')) {
+            const btn = e.target.closest('.edit-device-btn');
+            const deviceId = parseInt(btn.getAttribute('data-id'));
+            openEditModal(deviceId);
+          }
+          // 添加删除按钮点击事件
+          else if (e.target.closest('.delete-device-btn')) {
+            const btn = e.target.closest('.delete-device-btn');
+            const deviceId = parseInt(btn.getAttribute('data-id'));
+            deleteDevice(deviceId);
+          }
+        });
 
       // 打开编辑模态框并填充数据
       function openEditModal(deviceId) {
@@ -1075,8 +1081,43 @@
       });
     }
 
-    // 初始化分页相关事件
-    function initPaginationEvents() {
+    // 删除设备
+      function deleteDevice(deviceId) {
+        if (confirm('确定要删除该设备吗？此操作不可撤销。')) {
+          // 查找并删除设备数据
+          const devices = libraryDevices[currentLibraryId] || [];
+          const deviceIndex = devices.findIndex(d => d.id === deviceId);
+
+          if (deviceIndex !== -1) {
+            // 删除设备
+            devices.splice(deviceIndex, 1);
+
+            // 更新仓库设备数量
+            const libraryIndex = librariesData.findIndex(l => l.id === currentLibraryId);
+            if (libraryIndex !== -1) {
+              librariesData[libraryIndex].deviceCount = devices.length;
+              document.getElementById('currentLibraryCount').textContent = devices.length;
+            }
+
+            // 重新渲染设备表格
+            renderDevicesTable(devices);
+
+            // 更新统计数据
+            updateStatistics(devices);
+
+            // 更新图表
+            updateCharts(devices);
+
+            // 显示提示信息
+            showAlert('设备已成功删除');
+          } else {
+            showAlert('未找到该设备信息');
+          }
+        }
+      }
+
+      // 初始化分页相关事件
+      function initPaginationEvents() {
       // 上一页按钮
       document.getElementById('devicePrevPage').addEventListener('click', function() {
         const currentPage = parseInt(document.getElementById('currentPage')?.textContent) || 1;
