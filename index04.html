@@ -1,0 +1,1461 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>仓库管理系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+
+  <!-- Tailwind 配置 - 未来感配色 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#165DFF',
+            secondary: '#0FC6C2',
+            accent: '#722ED1',
+            dark: '#1D2129',
+            light: '#F2F3F5'
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+          boxShadow: {
+            'futuristic': '0 4px 20px rgba(22, 93, 255, 0.1)',
+            'hover': '0 8px 30px rgba(22, 93, 255, 0.15)',
+            'library': '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+          }
+        },
+      }
+    }
+  </script>
+
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .text-gradient {
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+      }
+      .bg-glass {
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(10px);
+      }
+      .device-icon {
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .sidebar-item {
+        transition: all 0.3s ease;
+        transform-style: preserve-3d;
+        perspective: 1000px;
+      }
+      .sidebar-item:hover {
+        transform: translateZ(10px) translateY(-5px);
+        box-shadow: 0 15px 30px rgba(22, 93, 255, 0.15);
+      }
+      .sidebar-item::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background: linear-gradient(135deg, rgba(22, 93, 255, 0.1), transparent 50%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        transform: translateZ(-1px);
+      }
+      .sidebar-item:hover::before {
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen text-dark overflow-x-hidden">
+  <div class="flex min-h-screen">
+    <!-- 左侧侧边栏 -->
+    <aside class="w-64 bg-white border-r border-gray-200 shadow-sm h-screen sticky top-0 z-40 transition-all duration-300">
+      <div class="p-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-800 flex items-center">
+          <i class="fa fa-th-large text-primary mr-2"></i>仓库列表
+        </h2>
+      </div>
+
+      <div class="p-4">
+        <button id="addLibraryBtn" class="w-full bg-primary/10 hover:bg-primary/20 text-primary rounded-lg px-4 py-2 text-sm flex items-center justify-center transition-colors mb-4">
+          <i class="fa fa-plus mr-2"></i> 添加新仓库
+        </button>
+
+        <div class="space-y-3" id="librariesList">
+          <!-- 仓库列表项将通过JavaScript动态生成 -->
+        </div>
+      </div>
+
+      <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
+        <div class="text-xs text-gray-500">
+          <p>当前仓库: <span id="currentLibraryName" class="font-medium text-primary">总仓库</span></p>
+          <p class="mt-1">设备总数: <span id="currentLibraryCount" class="font-medium">14</span></p>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 主内容区域 -->
+    <main class="flex-1">
+      <!-- 吸顶导航栏 -->
+      <header class="sticky top-0 z-30 bg-glass border-b border-gray-200 transition-all duration-300">
+        <div class="container mx-auto px-4">
+          <div class="flex items-center justify-between h-16 md:h-20">
+            <!-- 标题区域 -->
+            <div class="flex items-center">
+              <div class="bg-primary/10 p-2 rounded-lg mr-3">
+                <i class="fa fa-cube text-primary text-xl"></i>
+              </div>
+              <div>
+                <h1 class="text-lg md:text-xl font-bold bg-gradient-to-r from-primary to-accent text-gradient">
+                  仓库管理系统
+                </h1>
+                <p class="text-xs text-gray-500 hidden md:block">智能设备全生命周期管理</p>
+              </div>
+            </div>
+
+            <!-- 导航菜单 -->
+            <nav class="hidden md:block">
+              <ul class="flex space-x-1" id="navTabs">
+                <li>
+                  <a href="#" class="px-4 py-2 text-sm font-medium text-primary border-b-2 border-primary" data-target="statistics">
+                    <i class="fa fa-bar-chart mr-1"></i>统计报表
+                  </a>
+                </li>
+                <li>
+                  <a href="#" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-primary transition-colors" data-target="deviceManagement">
+                    <i class="fa fa-cubes mr-1"></i>设备管理
+                  </a>
+                </li>
+                <li>
+                  <a href="#" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-primary transition-colors" data-target="entryRecord">
+                    <i class="fa fa-sign-in mr-1"></i>入库记录
+                  </a>
+                </li>
+                <li>
+                  <a href="#" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-primary transition-colors" data-target="exitRecord">
+                    <i class="fa fa-sign-out mr-1"></i>出库记录
+                  </a>
+                </li>
+              </ul>
+            </nav>
+
+            <!-- 移动端菜单按钮 -->
+            <button class="md:hidden text-gray-700" id="mobileMenuBtn">
+              <i class="fa fa-bars text-xl"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- 移动端导航菜单 -->
+        <div class="md:hidden hidden bg-white border-t border-gray-100" id="mobileMenu">
+          <div class="container mx-auto px-4 py-2">
+            <ul class="py-2" id="mobileNavTabs">
+              <li>
+                <a href="#" class="block px-4 py-2 text-sm font-medium text-primary" data-target="statistics">
+                  <i class="fa fa-bar-chart mr-1"></i>统计报表
+                </a>
+              </li>
+              <li>
+                <a href="#" class="block px-4 py-2 text-sm font-medium text-gray-500" data-target="deviceManagement">
+                  <i class="fa fa-cubes mr-1"></i>设备管理
+                </a>
+              </li>
+              <li>
+                <a href="#" class="block px-4 py-2 text-sm font-medium text-gray-500" data-target="entryRecord">
+                  <i class="fa fa-sign-in mr-1"></i>入库记录
+                </a>
+              </li>
+              <li>
+                <a href="#" class="block px-4 py-2 text-sm font-medium text-gray-500" data-target="exitRecord">
+                  <i class="fa fa-sign-out mr-1"></i>出库记录
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </header>
+
+      <!-- 页面容器 -->
+      <div class="container mx-auto px-4 py-6 max-w-7xl">
+        <!-- 状态提示 -->
+        <div id="statusAlert" class="hidden bg-primary/10 border border-primary/20 text-primary px-4 py-3 rounded-lg mb-6 flex items-center animate-fadeIn">
+          <i class="fa fa-info-circle mr-3 text-primary"></i>
+          <span id="alertMessage"></span>
+          <button type="button" class="ml-auto text-primary hover:text-primary/80 transition-colors">
+            <i class="fa fa-times"></i>
+          </button>
+        </div>
+
+        <!-- 选项卡内容区域 -->
+        <div class="tab-content">
+          <!-- 设备管理区域 -->
+          <div id="deviceManagement" class="tab-pane">
+            <!-- 数据统计卡片 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <div class="bg-white rounded-xl p-5 shadow-futuristic border border-gray-100 transition-all duration-300 hover:shadow-hover hover:-translate-y-1 sidebar-item">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <p class="text-gray-500 text-sm">总设备数</p>
+                    <h3 class="text-2xl font-bold text-gray-800 mt-1" id="totalDevices">0</h3>
+                  </div>
+                  <div class="bg-primary/10 p-3 rounded-lg">
+                    <i class="fa fa-archive text-primary text-xl"></i>
+                  </div>
+                </div>
+                <div class="mt-4 text-xs text-gray-500">
+                  <span class="text-green-500"><i class="fa fa-arrow-up"></i> 较上月增长 12%</span>
+                </div>
+              </div>
+
+              <div class="bg-white rounded-xl p-5 shadow-futuristic border border-gray-100 transition-all duration-300 hover:shadow-hover hover:-translate-y-1 sidebar-item">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <p class="text-gray-500 text-sm">正常设备</p>
+                    <h3 class="text-2xl font-bold text-gray-800 mt-1" id="normalDevices">0</h3>
+                  </div>
+                  <div class="bg-green-50 p-3 rounded-lg">
+                    <i class="fa fa-check-circle text-green-500 text-xl"></i>
+                  </div>
+                </div>
+                <div class="mt-4 text-xs text-gray-500">
+                  <span class="text-green-500"><i class="fa fa-arrow-up"></i> 较上月增长 8%</span>
+                </div>
+              </div>
+
+              <div class="bg-white rounded-xl p-5 shadow-futuristic border border-gray-100 transition-all duration-300 hover:shadow-hover hover:-translate-y-1 sidebar-item">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <p class="text-gray-500 text-sm">待检修</p>
+                    <h3 class="text-2xl font-bold text-gray-800 mt-1" id="maintenanceDevices">0</h3>
+                  </div>
+                  <div class="bg-yellow-50 p-3 rounded-lg">
+                    <i class="fa fa-wrench text-yellow-500 text-xl"></i>
+                  </div>
+                </div>
+                <div class="mt-4 text-xs text-gray-500">
+                  <span class="text-yellow-500"><i class="fa fa-minus"></i> 与上月持平</span>
+                </div>
+              </div>
+
+              <div class="bg-white rounded-xl p-5 shadow-futuristic border border-gray-100 transition-all duration-300 hover:shadow-hover hover:-translate-y-1 sidebar-item">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <p class="text-gray-500 text-sm">已损坏</p>
+                    <h3 class="text-2xl font-bold text-gray-800 mt-1" id="damagedDevices">0</h3>
+                  </div>
+                  <div class="bg-red-50 p-3 rounded-lg">
+                    <i class="fa fa-exclamation-circle text-red-500 text-xl"></i>
+                  </div>
+                </div>
+                <div class="mt-4 text-xs text-gray-500">
+                  <span class="text-green-500"><i class="fa fa-arrow-down"></i> 较上月减少 3%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 表格区域 -->
+            <div class="bg-white rounded-xl shadow-futuristic border border-gray-100 overflow-hidden mb-6">
+              <!-- 工具栏 -->
+              <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                  <h2 class="text-lg font-semibold text-gray-800">设备库存列表</h2>
+                  <p class="text-sm text-gray-500">管理所有设备的库存状态和基本信息</p>
+                </div>
+
+                <div class="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+              <div class="relative flex-grow md:flex-grow-0 md:w-64">
+                <input type="text" placeholder="搜索设备名称..."
+                      class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all text-sm" />
+                <i class="fa fa-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+              </div>
+
+              <div class="flex items-center gap-3 w-full md:w-auto">
+                <div class="relative">
+                  <select id="pageSizeSelector" class="appearance-none w-full md:w-32 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all text-sm bg-white pr-8">
+                    <option value="5">5条/页</option>
+                    <option value="10" selected>10条/页</option>
+                    <option value="20">20条/页</option>
+                    <option value="50">50条/页</option>
+                  </select>
+                  <i class="fa fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+                </div>
+
+                <button class="bg-primary text-white rounded-lg px-4 py-2 text-sm flex items-center transition-all duration-300 hover:bg-primary/90 hover:shadow-lg">
+                  <i class="fa fa-plus mr-1"></i> 添加设备
+                </button>
+              </div>
+            </div>
+              </div>
+
+              <!-- 加载状态 -->
+              <div id="deviceLoadingState" class="py-20 flex flex-col items-center justify-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                <p class="mt-4 text-gray-500">正在加载设备数据...</p>
+              </div>
+
+              <!-- 空数据状态 -->
+              <div id="deviceEmptyState" class="hidden py-20 flex flex-col items-center justify-center">
+                <i class="fa fa-box-open text-4xl text-gray-300 mb-4"></i>
+                <h3 class="text-lg font-medium text-gray-800">暂无设备数据</h3>
+                <p class="mt-2 text-gray-500">点击"添加设备"按钮创建第一条记录</p>
+              </div>
+
+              <!-- 表格内容 -->
+              <div id="deviceTableContent" class="hidden">
+                <div class="overflow-x-auto">
+                  <table class="w-full">
+                    <thead>
+                      <tr class="bg-gray-50">
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">序号</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">设备名称</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">入库时间</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">库存数量</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200" id="devicesTableBody">
+                      <!-- 设备数据行 - 动态生成 -->
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- 分页控制 -->
+                <div class="px-6 py-4 border-t border-gray-200 flex flex-col md:flex-row justify-between items-center">
+                  <div class="text-sm text-gray-500 mb-4 md:mb-0">
+                    显示 <span id="deviceStartIndex">1</span> 到 <span id="deviceEndIndex">0</span> 条，共 <span id="deviceTotalCount">0</span> 条
+                  </div>
+
+                  <div class="flex items-center">
+                    <button id="devicePrevPage" class="px-3 py-1.5 rounded-l-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled>
+                      <i class="fa fa-chevron-left text-xs"></i>
+                    </button>
+
+                    <div id="devicePaginationNumbers" class="flex">
+                      <!-- 页码将通过JavaScript动态填充 -->
+                    </div>
+
+                    <button id="deviceNextPage" class="px-3 py-1.5 rounded-r-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled>
+                      <i class="fa fa-chevron-right text-xs"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 入库记录区域 -->
+          <div id="entryRecord" class="tab-pane hidden">
+            <!-- 入库操作按钮 -->
+            <div class="flex justify-end mb-6">
+              <button class="bg-primary text-white rounded-lg px-4 py-2 text-sm flex items-center transition-all duration-300 hover:bg-primary/90 hover:shadow-lg">
+                <i class="fa fa-plus mr-1"></i> 添加入库记录
+              </button>
+            </div>
+
+            <!-- 入库记录搜索 -->
+            <div class="bg-white rounded-xl shadow-futuristic border border-gray-100 p-5 mb-6">
+              <h3 class="text-lg font-semibold text-gray-800 mb-4">搜索入库记录</h3>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">设备名称</label>
+                  <input type="text" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all text-sm" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">开始日期</label>
+                  <input type="date" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all text-sm" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">结束日期</label>
+                  <input type="date" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all text-sm" />
+                </div>
+              </div>
+              <div class="mt-4 flex justify-end gap-3">
+                <button class="bg-gray-100 text-gray-700 rounded-lg px-4 py-2 text-sm transition-colors hover:bg-gray-200">
+                  <i class="fa fa-refresh mr-1"></i> 重置
+                </button>
+                <button class="bg-primary text-white rounded-lg px-4 py-2 text-sm transition-colors hover:bg-primary/90">
+                  <i class="fa fa-search mr-1"></i> 搜索
+                </button>
+              </div>
+            </div>
+
+            <!-- 入库记录列表 -->
+            <div class="bg-white rounded-xl shadow-futuristic border border-gray-100 overflow-hidden mb-6">
+              <div class="p-5 border-b border-gray-100">
+                <h2 class="text-lg font-semibold text-gray-800">入库记录列表</h2>
+                <p class="text-sm text-gray-500">查看所有设备的入库历史记录</p>
+              </div>
+
+              <!-- 表格内容 -->
+              <div id="entryTableContent" class="hidden">
+                <div class="overflow-x-auto">
+                  <table class="w-full">
+                    <thead>
+                      <tr class="bg-gray-50">
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">序号</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">设备名称</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">入库时间</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">入库数量</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作人</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">备注</th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200" id="entryRecordsTableBody">
+                      <!-- 入库记录行 - 动态生成 -->
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- 分页控制 -->
+                <div class="px-6 py-4 border-t border-gray-200 flex flex-col md:flex-row justify-between items-center">
+                  <div class="text-sm text-gray-500 mb-4 md:mb-0">
+                    显示 <span id="entryStartIndex">1</span> 到 <span id="entryEndIndex">0</span> 条，共 <span id="entryTotalCount">0</span> 条
+                  </div>
+
+                  <div class="flex items-center">
+                    <button id="entryPrevPage" class="px-3 py-1.5 rounded-l-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled>
+                      <i class="fa fa-chevron-left text-xs"></i>
+                    </button>
+
+                    <div id="entryPaginationNumbers" class="flex">
+                      <!-- 页码将通过JavaScript动态填充 -->
+                    </div>
+
+                    <button id="entryNextPage" class="px-3 py-1.5 rounded-r-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled>
+                      <i class="fa fa-chevron-right text-xs"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 出库记录区域 -->
+          <div id="exitRecord" class="tab-pane hidden">
+            <!-- 出库操作按钮 -->
+            <div class="flex justify-end mb-6">
+              <button class="bg-primary text-white rounded-xl px-4 py-2 text-sm flex items-center transition-all duration-300 hover:bg-primary/90 hover:shadow-lg">
+                <i class="fa fa-plus mr-1"></i> 添加出库记录
+              </button>
+            </div>
+
+            <!-- 出库记录搜索 -->
+            <div class="bg-white rounded-xl shadow-futuristic border border-gray-100 p-5 mb-6">
+              <h3 class="text-lg font-semibold text-gray-800 mb-4">搜索出库记录</h3>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">设备名称</label>
+                  <input type="text" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all text-sm" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">开始日期</label>
+                  <input type="date" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all text-sm" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">结束日期</label>
+                  <input type="date" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all text-sm" />
+                </div>
+              </div>
+              <div class="mt-4 flex justify-end gap-3">
+                <button class="bg-gray-100 text-gray-700 rounded-lg px-4 py-2 text-sm transition-colors hover:bg-gray-200">
+                  <i class="fa fa-refresh mr-1"></i> 重置
+                </button>
+                <button class="bg-primary text-white rounded-lg px-4 py-2 text-sm transition-colors hover:bg-primary/90">
+                  <i class="fa fa-search mr-1"></i> 搜索
+                </button>
+              </div>
+            </div>
+
+            <!-- 出库记录列表 -->
+            <div class="bg-white rounded-xl shadow-futuristic border border-gray-100 overflow-hidden mb-6">
+              <div class="p-5 border-b border-gray-100">
+                <h2 class="text-lg font-semibold text-gray-800">出库记录列表</h2>
+                <p class="text-sm text-gray-500">查看所有设备的出库历史记录</p>
+              </div>
+
+              <!-- 表格内容 -->
+              <div id="exitTableContent" class="hidden">
+                <div class="overflow-x-auto">
+                  <table class="w-full">
+                    <thead>
+                      <tr class="bg-gray-50">
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">序号</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">设备名称</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">出库时间</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">出库数量</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作人</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">领取人</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">用途</th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200" id="exitRecordsTableBody">
+                      <!-- 出库记录行 - 动态生成 -->
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- 分页控制 -->
+                <div class="px-6 py-4 border-t border-gray-200 flex flex-col md:flex-row justify-between items-center">
+                  <div class="text-sm text-gray-500 mb-4 md:mb-0">
+                    显示 <span id="exitStartIndex">1</span> 到 <span id="exitEndIndex">0</span> 条，共 <span id="exitTotalCount">0</span> 条
+                  </div>
+
+                  <div class="flex items-center">
+                    <button id="exitPrevPage" class="px-3 py-1.5 rounded-l-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled>
+                      <i class="fa fa-chevron-left text-xs"></i>
+                    </button>
+
+                    <div id="exitPaginationNumbers" class="flex">
+                      <!-- 页码将通过JavaScript动态填充 -->
+                    </div>
+
+                    <button id="exitNextPage" class="px-3 py-1.5 rounded-r-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled>
+                      <i class="fa fa-chevron-right text-xs"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 统计报表区域 -->
+          <div id="statistics" class="tab-pane hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              <!-- 库存统计图表 -->
+              <div class="bg-white rounded-xl shadow-futuristic border border-gray-100 p-5 transition-all duration-300 hover:shadow-hover">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">设备库存统计</h3>
+                <div class="h-80">
+                  <canvas id="inventoryChart"></canvas>
+                </div>
+              </div>
+
+              <!-- 出入库趋势图表 -->
+              <div class="bg-white rounded-xl shadow-futuristic border border-gray-100 p-5 transition-all duration-300 hover:shadow-hover">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">出入库趋势</h3>
+                <div class="h-80">
+                  <canvas id="trendChart"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- 设备状态分布 -->
+            <div class="bg-white rounded-xl shadow-futuristic border border-gray-100 p-5 mb-6 transition-all duration-300 hover:shadow-hover">
+              <h3 class="text-lg font-semibold text-gray-800 mb-4">设备状态分布</h3>
+              <div class="h-80">
+                <canvas id="statusChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- 添加仓库模态框 -->
+  <div class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50" id="addLibraryModal">
+    <div class="bg-white rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-95 opacity-0" id="modalContent">
+      <div class="p-5 border-b border-gray-200 flex justify-between items-center">
+        <h3 class="text-lg font-semibold text-gray-800">添加新仓库</h3>
+        <button type="button" class="text-gray-500 hover:text-gray-700 transition-colors" id="closeLibraryModal">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+      <div class="p-5">
+        <form id="addLibraryForm">
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">仓库名称 <span class="text-red-500">*</span></label>
+            <input type="text" id="libraryName" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all text-sm" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">仓库位置</label>
+            <input type="text" id="libraryLocation" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all text-sm">
+          </div>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">负责人</label>
+            <input type="text" id="libraryManager" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all text-sm">
+          </div>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">备注</label>
+            <textarea id="libraryRemark" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all text-sm" rows="3"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="p-5 border-t border-gray-100 flex justify-end gap-3">
+        <button type="button" class="bg-gray-100 text-gray-700 rounded-lg px-4 py-2 text-sm transition-colors hover:bg-gray-200" id="cancelLibraryModal">取消</button>
+        <button type="button" class="bg-primary text-white rounded-lg px-4 py-2 text-sm transition-colors hover:bg-primary/90" id="submitLibrary">创建仓库</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 编辑设备模态框 -->
+  <div class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50" id="editDeviceModal">
+    <div class="bg-white rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto transform transition-all duration-300 scale-95 opacity-0" id="editModalContent">
+      <div class="p-5 border-b border-gray-200 flex justify-between items-center">
+        <h3 class="text-lg font-semibold text-gray-800">编辑设备信息</h3>
+        <button type="button" class="text-gray-500 hover:text-gray-700 transition-colors" id="closeEditModal">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+      <div class="p-5">
+        <form id="editDeviceForm">
+          <input type="hidden" id="editDeviceId">
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">设备名称 <span class="text-red-500">*</span></label>
+            <input type="text" id="editDeviceName" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all text-sm" required>
+          </div>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">入库时间</label>
+            <input type="datetime-local" id="editDeviceEntryTime" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all text-sm">
+          </div>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">库存数量</label>
+            <input type="number" id="editDeviceInventory" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all text-sm" min="0">
+          </div>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">状态</label>
+            <select id="editDeviceStatus" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all text-sm">
+              <option value="正常">正常</option>
+              <option value="待检修">待检修</option>
+              <option value="已损坏">已损坏</option>
+              <option value="已借出">已借出</option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="p-5 border-t border-gray-100 flex justify-end gap-3">
+        <button type="button" class="bg-gray-100 text-gray-700 rounded-lg px-4 py-2 text-sm transition-colors hover:bg-gray-200" id="cancelEditModal">取消</button>
+        <button type="button" class="bg-primary text-white rounded-lg px-4 py-2 text-sm transition-colors hover:bg-primary/90" id="submitEditDevice">保存修改</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 仓库数据
+    const librariesData = [
+      { id: 1, name: '总仓库', location: '主楼一层', manager: '张三', deviceCount: 14 },
+      { id: 2, name: '医疗设备库', location: '副楼二层', manager: '李四', deviceCount: 8 },
+      { id: 3, name: '电子设备库', location: '副楼三层', manager: '王五', deviceCount: 6 },
+      { id: 4, name: '应急物资库', location: '地下一层', manager: '赵六', deviceCount: 12 }
+    ];
+
+    // 不同仓库的设备数据
+    const libraryDevices = {
+      1: [
+        { id: 1, name: '血压仪', entryTime: '2023-05-15T10:30:00', inventory: 5, status: '正常' },
+        { id: 2, name: '血糖仪', entryTime: '2023-06-20T14:15:00', inventory: 3, status: '正常' },
+        { id: 3, name: '尿酸仪', entryTime: '2023-04-10T09:45:00', inventory: 2, status: '待检修' },
+        { id: 4, name: '人体存在检测', entryTime: '2023-07-05T16:20:00', inventory: 8, status: '正常' },
+        { id: 5, name: '水滴形监控', entryTime: '2023-03-28T11:50:00', inventory: 6, status: '正常' },
+        { id: 6, name: '智能门阀', entryTime: '2023-05-12T08:30:00', inventory: 4, status: '正常' },
+        { id: 7, name: '通话报警', entryTime: '2023-06-30T15:20:00', inventory: 7, status: '正常' },
+        { id: 8, name: '红外探测仪', entryTime: '2023-04-05T10:15:00', inventory: 3, status: '正常' },
+        { id: 9, name: '燃气泄漏检测', entryTime: '2023-07-18T14:40:00', inventory: 2, status: '待检修' },
+        { id: 10, name: '智能手表', entryTime: '2023-02-20T09:10:00', inventory: 10, status: '正常' },
+        { id: 11, name: '挂式呼叫器', entryTime: '2023-03-15T11:30:00', inventory: 6, status: '正常' },
+        { id: 12, name: '救助记录仪', entryTime: '2023-05-25T16:45:00', inventory: 4, status: '正常' },
+        { id: 13, name: '浸水检测', entryTime: '2023-06-10T13:20:00', inventory: 3, status: '正常' },
+        { id: 14, name: '生命体征探测器', entryTime: '2023-07-02T10:50:00', inventory: 5, status: '正常' }
+      ],
+      2: [
+        { id: 1, name: '血压仪', entryTime: '2023-05-15T10:30:00', inventory: 3, status: '正常' },
+        { id: 2, name: '血糖仪', entryTime: '2023-06-20T14:15:00', inventory: 2, status: '正常' },
+        { id: 3, name: '生命体征探测器', entryTime: '2023-07-02T10:50:00', inventory: 3, status: '正常' }
+      ],
+      3: [
+        { id: 1, name: '水滴形监控', entryTime: '2023-03-28T11:50:00', inventory: 4, status: '正常' },
+        { id: 2, name: '智能门阀', entryTime: '2023-05-12T08:30:00', inventory: 2, status: '正常' }
+      ],
+      4: [
+        { id: 1, name: '通话报警', entryTime: '2023-06-30T15:20:00', inventory: 5, status: '正常' },
+        { id: 2, name: '红外探测仪', entryTime: '2023-04-05T10:15:00', inventory: 3, status: '正常' },
+        { id: 3, name: '燃气泄漏检测', entryTime: '2023-07-18T14:40:00', inventory: 2, status: '待检修' },
+        { id: 4, name: '浸水检测', entryTime: '2023-06-10T13:20:00', inventory: 2, status: '正常' }
+      ]
+    };
+
+    // 设备图标映射表
+    const deviceIcons = {
+      '血压仪': 'fa-heartbeat',
+      '血糖仪': 'fa-flask',
+      '尿酸仪': 'fa-tint',
+      '人体存在检测': 'fa-user',
+      '水滴形监控': 'fa-video-camera',
+      '智能门阀': 'fa-lock',
+      '通话报警': 'fa-phone',
+      '红外探测仪': 'fa-bullseye',
+      '燃气泄漏检测': 'fa-fire',
+      '智能手表': 'fa-clock-o',
+      '挂式呼叫器': 'fa-bell',
+      '救助记录仪': 'fa-ambulance',
+      '浸水检测': 'fa-tint',
+      '生命体征探测器': 'fa-heartbeat'
+    };
+
+    // 当前选中的仓库ID
+    let currentLibraryId = 1;
+
+    // API基础URL
+    const API_BASE_URL = 'http://192.168.1.93:5001';
+
+    // DOM加载完成后初始化
+    document.addEventListener('DOMContentLoaded', function() {
+      // 渲染仓库列表
+      renderLibrariesList();
+
+      // 初始加载第一个仓库的设备数据
+      loadLibraryDevices(currentLibraryId);
+
+      // 初始化导航切换
+      initNavigation();
+
+      // 初始化图表
+      initCharts();
+
+      // 初始化添加仓库模态框
+      initAddLibraryModal();
+
+      // 初始化编辑设备模态框
+      initEditDeviceModal();
+
+      // 初始化滚动效果
+          initScrollEffect();
+
+          // 初始化分页事件
+          initPaginationEvents();
+
+          // 初始显示统计报表
+          showModule('statistics');
+    });
+
+    // 渲染仓库列表
+    function renderLibrariesList() {
+      const librariesList = document.getElementById('librariesList');
+      librariesList.innerHTML = '';
+
+      librariesData.forEach(library => {
+        const isActive = library.id === currentLibraryId;
+
+        const libraryItem = document.createElement('div');
+        libraryItem.className = `sidebar-item relative bg-white border border-gray-200 rounded-lg p-3 cursor-pointer transition-all duration-300 ${isActive ? 'border-primary bg-primary/5' : 'hover:border-primary/50'}`;
+        libraryItem.setAttribute('data-id', library.id);
+
+        libraryItem.innerHTML = `
+          <div class="flex items-start justify-between">
+            <div>
+              <h3 class="font-medium text-gray-800 text-sm ${isActive ? 'text-primary' : ''}">${library.name}</h3>
+              <p class="text-xs text-gray-500 mt-1">${library.location}</p>
+              <p class="text-xs text-gray-500 mt-1">设备: ${library.deviceCount} 台</p>
+            </div>
+            <div class="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded">${library.manager}</div>
+          </div>
+          ${isActive ? '<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-l-lg"></div>' : ''}
+        `;
+
+        // 添加仓库切换事件
+        libraryItem.addEventListener('click', function() {
+          const libraryId = parseInt(this.getAttribute('data-id'));
+          if (libraryId !== currentLibraryId) {
+            currentLibraryId = libraryId;
+            renderLibrariesList(); // 重新渲染列表以更新选中状态
+            loadLibraryDevices(libraryId); // 加载选中仓库的设备数据
+
+            // 更新底部当前仓库信息
+            const currentLibrary = librariesData.find(l => l.id === libraryId);
+            document.getElementById('currentLibraryName').textContent = currentLibrary.name;
+            document.getElementById('currentLibraryCount').textContent = currentLibrary.deviceCount;
+
+            // 显示提示信息
+            showAlert(`已切换到 ${currentLibrary.name}`);
+          }
+        });
+
+        librariesList.appendChild(libraryItem);
+      });
+    }
+
+    // 加载指定仓库的设备数据
+    function loadLibraryDevices(libraryId) {
+      // 显示加载状态
+      document.getElementById('deviceLoadingState').classList.remove('hidden');
+      document.getElementById('deviceTableContent').classList.add('hidden');
+      document.getElementById('deviceEmptyState').classList.add('hidden');
+
+      // 获取该仓库的设备数据
+      const devices = libraryDevices[libraryId] || [];
+
+      // 模拟加载延迟
+      setTimeout(() => {
+        // 渲染设备表格
+        renderDevicesTable(devices);
+
+        // 更新统计数据
+        updateStatistics(devices);
+
+        // 隐藏加载状态，显示表格
+        document.getElementById('deviceLoadingState').classList.add('hidden');
+
+        if (devices.length === 0) {
+          document.getElementById('deviceEmptyState').classList.remove('hidden');
+        } else {
+          document.getElementById('deviceTableContent').classList.remove('hidden');
+        }
+
+        // 更新图表
+        updateCharts(devices);
+      }, 600);
+    }
+
+    // 渲染设备表格
+    function renderDevicesTable(devices) {
+      const tableBody = document.getElementById('devicesTableBody');
+      tableBody.innerHTML = '';
+
+      if (devices.length === 0) return;
+
+      // 获取当前页码和每页显示数量
+      const pageSize = parseInt(document.getElementById('pageSizeSelector').value) || 10;
+      const currentPage = parseInt(document.getElementById('currentPage')?.textContent) || 1;
+      const startIndex = (currentPage - 1) * pageSize;
+      const endIndex = Math.min(startIndex + pageSize, devices.length);
+      const paginatedDevices = devices.slice(startIndex, endIndex);
+
+      paginatedDevices.forEach((device, index) => {
+        // 状态样式映射
+        const statusStyles = {
+          '正常': 'bg-green-100 text-green-800',
+          '待检修': 'bg-yellow-100 text-yellow-800',
+          '已损坏': 'bg-red-100 text-red-800',
+          '已借出': 'bg-blue-100 text-blue-800'
+        };
+
+        // 获取设备对应的图标
+        const iconClass = deviceIcons[device.name] || 'fa-cube';
+
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-50 transition-colors duration-200 sidebar-item';
+        row.innerHTML = `
+          <th scope="row" class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${startIndex + index + 1}</th>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <div class="flex items-center">
+              <div class="device-icon bg-primary/10 rounded-full text-primary mr-3">
+                <i class="fa ${iconClass}"></i>
+              </div>
+              <div>
+                <div class="text-sm font-medium text-gray-900">${device.name}</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDateTime(device.entryTime)}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${device.inventory}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusStyles[device.status]}">
+              ${device.status}
+            </span>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+            <button class="text-indigo-600 hover:text-indigo-900 mr-3 transition-colors edit-device-btn" data-id="${device.id}">
+              <i class="fa fa-pencil mr-1"></i>编辑
+            </button>
+            <button class="text-red-600 hover:text-red-900 transition-colors">
+              <i class="fa fa-trash mr-1"></i>删除
+            </button>
+          </td>
+        `;
+        tableBody.appendChild(row);
+      });
+
+      // 更新分页信息
+      document.getElementById('deviceStartIndex').textContent = startIndex + 1;
+      document.getElementById('deviceEndIndex').textContent = endIndex;
+      document.getElementById('deviceTotalCount').textContent = devices.length;
+
+      // 生成页码
+      generatePagination(devices.length, pageSize, currentPage);
+
+      // 更新分页按钮状态
+      document.getElementById('devicePrevPage').disabled = currentPage === 1;
+      document.getElementById('deviceNextPage').disabled = endIndex >= devices.length;
+    }
+
+    // 生成分页
+    function generatePagination(totalItems, pageSize, currentPage) {
+      const paginationNumbers = document.getElementById('devicePaginationNumbers');
+      paginationNumbers.innerHTML = '';
+
+      const totalPages = Math.ceil(totalItems / pageSize);
+
+      // 显示页码范围
+      let startPage = Math.max(1, currentPage - 2);
+      let endPage = Math.min(totalPages, startPage + 4);
+
+      // 调整起始页码以确保显示5个页码
+      if (endPage - startPage < 4) {
+        startPage = Math.max(1, endPage - 4);
+      }
+
+      // 添加首页按钮
+      if (startPage > 1) {
+        addPageNumber(1);
+        if (startPage > 2) {
+          addEllipsis();
+        }
+      }
+
+      // 添加页码
+      for (let i = startPage; i <= endPage; i++) {
+        addPageNumber(i);
+      }
+
+      // 添加末页按钮
+      if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+          addEllipsis();
+        }
+        addPageNumber(totalPages);
+      }
+
+      function addPageNumber(pageNum) {
+        const pageButton = document.createElement('button');
+        pageButton.className = `px-3 py-1.5 border-t border-b border-gray-200 bg-white text-sm ${pageNum === currentPage ? 'text-primary font-medium border-primary' : 'text-gray-500 hover:text-primary'}`;
+        pageButton.textContent = pageNum;
+        pageButton.setAttribute('data-page', pageNum);
+        pageButton.id = pageNum === currentPage ? 'currentPage' : '';
+
+        pageButton.addEventListener('click', function() {
+          renderDevicesTable(libraryDevices[currentLibraryId] || []);
+        });
+
+        paginationNumbers.appendChild(pageButton);
+      }
+
+      function addEllipsis() {
+        const ellipsis = document.createElement('span');
+        ellipsis.className = 'px-3 py-1.5 border-t border-b border-gray-200 bg-white text-gray-500 text-sm';
+        ellipsis.textContent = '...';
+        paginationNumbers.appendChild(ellipsis);
+      }
+    }
+
+    // 初始化编辑设备模态框
+    function initEditDeviceModal() {
+      const modal = document.getElementById('editDeviceModal');
+      const modalContent = document.getElementById('editModalContent');
+      const closeModal = document.getElementById('closeEditModal');
+      const cancelModal = document.getElementById('cancelEditModal');
+      const submitModal = document.getElementById('submitEditDevice');
+
+      // 打开模态框
+      document.addEventListener('click', function(e) {
+        if (e.target.closest('.edit-device-btn')) {
+          const btn = e.target.closest('.edit-device-btn');
+          const deviceId = parseInt(btn.getAttribute('data-id'));
+          openEditModal(deviceId);
+        }
+      });
+
+      // 打开编辑模态框并填充数据
+      function openEditModal(deviceId) {
+        // 查找设备数据
+        const devices = libraryDevices[currentLibraryId] || [];
+        const device = devices.find(d => d.id === deviceId);
+
+        if (!device) {
+          showAlert('未找到该设备信息');
+          return;
+        }
+
+        // 填充表单数据
+        document.getElementById('editDeviceId').value = device.id;
+        document.getElementById('editDeviceName').value = device.name;
+
+        // 格式化日期时间为datetime-local输入格式
+        const date = new Date(device.entryTime);
+        const formattedDate = date.toISOString().slice(0, 16); // 保留到分钟
+        document.getElementById('editDeviceEntryTime').value = formattedDate;
+
+        document.getElementById('editDeviceInventory').value = device.inventory;
+        document.getElementById('editDeviceStatus').value = device.status;
+
+        // 显示模态框
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        // 添加入场动画
+        setTimeout(() => {
+          modalContent.classList.remove('scale-95', 'opacity-0');
+          modalContent.classList.add('scale-100', 'opacity-100');
+        }, 10);
+      }
+
+      // 关闭模态框
+      function hideModal() {
+        modalContent.classList.remove('scale-100', 'opacity-100');
+        modalContent.classList.add('scale-95', 'opacity-0');
+
+        // 添加退场动画
+        setTimeout(() => {
+          modal.classList.remove('flex');
+          modal.classList.add('hidden');
+        }, 300);
+      }
+
+      closeModal.addEventListener('click', hideModal);
+      cancelModal.addEventListener('click', hideModal);
+
+      // 点击模态框外部关闭
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+          hideModal();
+        }
+      });
+
+      // 提交表单
+      submitModal.addEventListener('click', function() {
+        const deviceId = parseInt(document.getElementById('editDeviceId').value);
+        const deviceName = document.getElementById('editDeviceName').value.trim();
+        const deviceEntryTime = document.getElementById('editDeviceEntryTime').value;
+        const deviceInventory = parseInt(document.getElementById('editDeviceInventory').value) || 0;
+        const deviceStatus = document.getElementById('editDeviceStatus').value;
+
+        if (!deviceName) {
+          showAlert('请输入设备名称');
+          return;
+        }
+
+        if (deviceInventory < 0) {
+          showAlert('库存数量不能为负数');
+          return;
+        }
+
+        // 查找并更新设备数据
+        const devices = libraryDevices[currentLibraryId] || [];
+        const deviceIndex = devices.findIndex(d => d.id === deviceId);
+
+        if (deviceIndex !== -1) {
+          // 更新设备数据
+          devices[deviceIndex] = {
+            ...devices[deviceIndex],
+            name: deviceName,
+            entryTime: deviceEntryTime ? new Date(deviceEntryTime).toISOString() : devices[deviceIndex].entryTime,
+            inventory: deviceInventory,
+            status: deviceStatus
+          };
+
+          // 重新渲染设备表格
+          renderDevicesTable(devices);
+
+          // 更新统计数据
+          updateStatistics(devices);
+
+          // 更新图表
+          updateCharts(devices);
+
+          // 隐藏模态框
+          hideModal();
+
+          // 显示提示信息
+          showAlert('设备信息已更新');
+        } else {
+          showAlert('未找到该设备信息');
+        }
+      });
+    }
+
+    // 初始化分页相关事件
+    function initPaginationEvents() {
+      // 上一页按钮
+      document.getElementById('devicePrevPage').addEventListener('click', function() {
+        const currentPage = parseInt(document.getElementById('currentPage')?.textContent) || 1;
+        if (currentPage > 1) {
+          // 创建当前页按钮并触发点击事件
+          const pageButton = document.createElement('button');
+          pageButton.setAttribute('data-page', currentPage - 1);
+          pageButton.click();
+        }
+      });
+
+      // 下一页按钮
+      document.getElementById('deviceNextPage').addEventListener('click', function() {
+        const currentPage = parseInt(document.getElementById('currentPage')?.textContent) || 1;
+        const totalItems = libraryDevices[currentLibraryId]?.length || 0;
+        const pageSize = parseInt(document.getElementById('pageSizeSelector').value) || 10;
+        const totalPages = Math.ceil(totalItems / pageSize);
+
+        if (currentPage < totalPages) {
+          // 创建当前页按钮并触发点击事件
+          const pageButton = document.createElement('button');
+          pageButton.setAttribute('data-page', currentPage + 1);
+          pageButton.click();
+        }
+      });
+
+      // 每页显示数量变更
+      document.getElementById('pageSizeSelector').addEventListener('change', function() {
+        renderDevicesTable(libraryDevices[currentLibraryId] || []);
+      });
+    }
+
+    // 更新统计数据
+    function updateStatistics(devices) {
+      const total = devices.length;
+      const normal = devices.filter(d => d.status === '正常').length;
+      const maintenance = devices.filter(d => d.status === '待检修').length;
+      const damaged = devices.filter(d => d.status === '已损坏').length;
+
+      document.getElementById('totalDevices').textContent = total;
+      document.getElementById('normalDevices').textContent = normal;
+      document.getElementById('maintenanceDevices').textContent = maintenance;
+      document.getElementById('damagedDevices').textContent = damaged;
+    }
+
+    // 初始化导航切换
+    function initNavigation() {
+      // 桌面端导航
+      const navLinks = document.querySelectorAll('#navTabs a');
+      navLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+          e.preventDefault();
+
+          // 更新导航样式
+          navLinks.forEach(l => {
+            l.classList.remove('text-primary', 'border-primary');
+            l.classList.add('text-gray-500', 'hover:text-primary');
+          });
+          this.classList.remove('text-gray-500', 'hover:text-primary');
+          this.classList.add('text-primary', 'border-primary');
+
+          // 显示对应模块
+          const target = this.getAttribute('data-target');
+          showModule(target);
+        });
+      });
+
+      // 移动端导航
+      const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+      const mobileMenu = document.getElementById('mobileMenu');
+
+      mobileMenuBtn.addEventListener('click', function() {
+        mobileMenu.classList.toggle('hidden');
+      });
+
+      const mobileNavLinks = document.querySelectorAll('#mobileNavTabs a');
+      mobileNavLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+          e.preventDefault();
+
+          // 更新移动端导航样式
+          mobileNavLinks.forEach(l => {
+            l.classList.remove('text-primary');
+            l.classList.add('text-gray-500');
+          });
+          this.classList.remove('text-gray-500');
+          this.classList.add('text-primary');
+
+          // 显示对应模块并关闭移动端菜单
+          const target = this.getAttribute('data-target');
+          showModule(target);
+          mobileMenu.classList.add('hidden');
+        });
+      });
+    }
+
+    // 显示指定模块
+    function showModule(moduleName) {
+      // 隐藏所有模块
+      document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.classList.add('hidden');
+      });
+
+      // 显示目标模块
+      const targetModule = document.getElementById(moduleName);
+      targetModule.classList.remove('hidden');
+    }
+
+    // 初始化图表
+    function initCharts() {
+      // 库存统计图表
+      window.inventoryChart = new Chart(document.getElementById('inventoryChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: [],
+          datasets: [{
+            label: '库存数量',
+            data: [],
+            backgroundColor: 'rgba(22, 93, 255, 0.7)',
+            borderColor: 'rgba(22, 93, 255, 1)',
+            borderWidth: 1,
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                drawBorder: false
+              }
+            },
+            x: {
+              grid: {
+                display: false
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: false
+            }
+          }
+        }
+      });
+
+      // 出入库趋势图表
+      window.trendChart = new Chart(document.getElementById('trendChart').getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: ['1月', '2月', '3月', '4月', '5月', '6月'],
+          datasets: [
+            {
+              label: '入库数量',
+              data: [0, 0, 0, 0, 0, 0],
+              borderColor: 'rgba(22, 93, 255, 1)',
+              backgroundColor: 'rgba(22, 93, 255, 0.1)',
+              tension: 0.4,
+              fill: true
+            },
+            {
+              label: '出库数量',
+              data: [0, 0, 0, 0, 0, 0],
+              borderColor: 'rgba(12, 189, 155, 1)',
+              backgroundColor: 'rgba(12, 189, 155, 0.1)',
+              tension: 0.4,
+              fill: true
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                drawBorder: false
+              }
+            },
+            x: {
+              grid: {
+                display: false
+              }
+            }
+          }
+        }
+      });
+
+      // 设备状态分布图表
+      window.statusChart = new Chart(document.getElementById('statusChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: ['正常', '待检修', '已损坏', '已借出'],
+          datasets: [{
+            data: [0, 0, 0, 0],
+            backgroundColor: [
+              'rgba(12, 189, 155, 0.7)',
+              'rgba(250, 173, 20, 0.7)',
+              'rgba(245, 106, 106, 0.7)',
+              'rgba(22, 93, 255, 0.7)'
+            ],
+            borderWidth: 0,
+            hoverOffset: 10
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right'
+            }
+          },
+          cutout: '65%'
+        }
+      });
+    }
+
+    // 更新图表数据
+    function updateCharts(devices) {
+      if (!window.inventoryChart || !window.trendChart || !window.statusChart) return;
+
+      // 更新库存统计图表
+      const deviceNames = [...new Set(devices.map(d => d.name))];
+      const deviceCounts = deviceNames.map(name => devices.find(d => d.name === name).inventory);
+
+      window.inventoryChart.data.labels = deviceNames;
+      window.inventoryChart.data.datasets[0].data = deviceCounts;
+      window.inventoryChart.update();
+
+      // 更新设备状态分布图表
+      const normal = devices.filter(d => d.status === '正常').length;
+      const maintenance = devices.filter(d => d.status === '待检修').length;
+      const damaged = devices.filter(d => d.status === '已损坏').length;
+      const lent = devices.filter(d => d.status === '已借出').length;
+
+      window.statusChart.data.datasets[0].data = [normal, maintenance, damaged, lent];
+      window.statusChart.update();
+    }
+
+    // 初始化添加仓库模态框
+    function initAddLibraryModal() {
+      const addLibraryBtn = document.getElementById('addLibraryBtn');
+      const modal = document.getElementById('addLibraryModal');
+      const modalContent = document.getElementById('modalContent');
+      const closeModal = document.getElementById('closeLibraryModal');
+      const cancelModal = document.getElementById('cancelLibraryModal');
+      const submitModal = document.getElementById('submitLibrary');
+
+      // 打开模态框
+      addLibraryBtn.addEventListener('click', function() {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        // 添加入场动画
+        setTimeout(() => {
+          modalContent.classList.remove('scale-95', 'opacity-0');
+          modalContent.classList.add('scale-100', 'opacity-100');
+        }, 10);
+      });
+
+      // 关闭模态框
+      function hideModal() {
+        modalContent.classList.remove('scale-100', 'opacity-100');
+        modalContent.classList.add('scale-95', 'opacity-0');
+
+        // 添加退场动画
+        setTimeout(() => {
+          modal.classList.remove('flex');
+          modal.classList.add('hidden');
+        }, 300);
+      }
+
+      closeModal.addEventListener('click', hideModal);
+      cancelModal.addEventListener('click', hideModal);
+
+      // 点击模态框外部关闭
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+          hideModal();
+        }
+      });
+
+      // 提交表单
+      submitModal.addEventListener('click', function() {
+        const libraryName = document.getElementById('libraryName').value.trim();
+        const libraryLocation = document.getElementById('libraryLocation').value.trim();
+        const libraryManager = document.getElementById('libraryManager').value.trim();
+
+        if (!libraryName) {
+          alert('请输入仓库名称');
+          return;
+        }
+
+        // 创建新仓库ID
+        const newId = Math.max(...librariesData.map(l => l.id)) + 1;
+
+        // 添加新仓库到数据中
+        librariesData.push({
+          id: newId,
+          name: libraryName,
+          location: libraryLocation || '未设置',
+          manager: libraryManager || '未设置',
+          deviceCount: 0
+        });
+
+        // 初始化新仓库的设备数据
+        libraryDevices[newId] = [];
+
+        // 重新渲染仓库列表
+        renderLibrariesList();
+
+        // 切换到新仓库
+        currentLibraryId = newId;
+        loadLibraryDevices(currentLibraryId);
+
+        // 更新底部当前仓库信息
+        const currentLibrary = librariesData.find(l => l.id === newId);
+        document.getElementById('currentLibraryName').textContent = currentLibrary.name;
+        document.getElementById('currentLibraryCount').textContent = currentLibrary.deviceCount;
+
+        // 隐藏模态框
+        hideModal();
+
+        // 重置表单
+        document.getElementById('addLibraryForm').reset();
+
+        // 显示提示信息
+        showAlert(`成功添加新仓库: ${libraryName}`);
+      });
+    }
+
+    // 显示提示信息
+    function showAlert(message) {
+      const alert = document.getElementById('statusAlert');
+      const alertMessage = document.getElementById('alertMessage');
+
+      alertMessage.textContent = message;
+      alert.classList.remove('hidden');
+
+      // 3秒后自动隐藏
+      setTimeout(() => {
+        alert.classList.add('hidden');
+      }, 3000);
+    }
+
+    // 初始化滚动效果
+    function initScrollEffect() {
+      const header = document.querySelector('header');
+      let lastScrollTop = 0;
+
+      window.addEventListener('scroll', function() {
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+
+        // 滚动时添加阴影效果
+        if (scrollTop > 10) {
+          header.classList.add('shadow-md');
+        } else {
+          header.classList.remove('shadow-md');
+        }
+
+        lastScrollTop = scrollTop;
+      });
+    }
+
+    // 工具函数：格式化日期时间
+    function formatDateTime(dateTimeStr) {
+      const date = new Date(dateTimeStr);
+      return date.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+  </script>
+</body>
+</html>
