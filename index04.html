@@ -645,49 +645,9 @@
 
   <script>
     // 仓库数据
-    const librariesData = [
-      { id: 1, name: '总仓库', location: '主楼一层', manager: '张三', deviceCount: 14 },
-      { id: 2, name: '医疗设备库', location: '副楼二层', manager: '李四', deviceCount: 8 },
-      { id: 3, name: '电子设备库', location: '副楼三层', manager: '王五', deviceCount: 6 },
-      { id: 4, name: '应急物资库', location: '地下一层', manager: '赵六', deviceCount: 12 }
-    ];
-
-    // 不同仓库的设备数据
-    const libraryDevices = {
-      1: [
-        { id: 1, name: '血压仪', entryTime: '2023-05-15T10:30:00', inventory: 5, status: '正常' },
-        { id: 2, name: '血糖仪', entryTime: '2023-06-20T14:15:00', inventory: 3, status: '正常' },
-        { id: 3, name: '尿酸仪', entryTime: '2023-04-10T09:45:00', inventory: 2, status: '待检修' },
-        { id: 4, name: '人体存在检测', entryTime: '2023-07-05T16:20:00', inventory: 8, status: '正常' },
-        { id: 5, name: '水滴形监控', entryTime: '2023-03-28T11:50:00', inventory: 6, status: '正常' },
-        { id: 6, name: '智能门阀', entryTime: '2023-05-12T08:30:00', inventory: 4, status: '正常' },
-        { id: 7, name: '通话报警', entryTime: '2023-06-30T15:20:00', inventory: 7, status: '正常' },
-        { id: 8, name: '红外探测仪', entryTime: '2023-04-05T10:15:00', inventory: 3, status: '正常' },
-        { id: 9, name: '燃气泄漏检测', entryTime: '2023-07-18T14:40:00', inventory: 2, status: '待检修' },
-        { id: 10, name: '智能手表', entryTime: '2023-02-20T09:10:00', inventory: 10, status: '正常' },
-        { id: 11, name: '挂式呼叫器', entryTime: '2023-03-15T11:30:00', inventory: 6, status: '正常' },
-        { id: 12, name: '救助记录仪', entryTime: '2023-05-25T16:45:00', inventory: 4, status: '正常' },
-        { id: 13, name: '浸水检测', entryTime: '2023-06-10T13:20:00', inventory: 3, status: '正常' },
-        { id: 84, name: '生命体征探测器2', entryTime: '2023-07-02T10:50:00', inventory: 5, status: '正常' }
-      ],
-      2: [
-        { id: 1, name: '血压仪', entryTime: '2023-05-15T10:30:00', inventory: 3, status: '正常' },
-        { id: 2, name: '血糖仪', entryTime: '2023-06-20T14:15:00', inventory: 2, status: '正常' },
-        { id: 3, name: '生命体征探测器', entryTime: '2023-07-02T10:50:00', inventory: 3, status: '正常' }
-      ],
-      3: [
-        { id: 1, name: '水滴形监控', entryTime: '2023-03-28T11:50:00', inventory: 4, status: '正常' },
-        { id: 2, name: '智能门阀', entryTime: '2023-05-12T08:30:00', inventory: 2, status: '正常' }
-      ],
-      4: [
-        { id: 1, name: '通话报警', entryTime: '2023-06-30T15:20:00', inventory: 5, status: '正常' },
-        { id: 2, name: '红外探测仪', entryTime: '2023-04-05T10:15:00', inventory: 3, status: '正常' },
-        { id: 3, name: '燃气泄漏检测', entryTime: '2023-07-18T14:40:00', inventory: 2, status: '待检修' },
-        { id: 4, name: '浸水检测', entryTime: '2023-06-10T13:20:00', inventory: 2, status: '正常' }
-      ]
-    };
-
-    // 设备图标映射表
+    // 仓库数据 - 初始化为空数组
+    let librariesData = [];
+        // 设备图标映射表
     const deviceIcons = {
       '血压仪': 'fa-heartbeat',
       '血糖仪': 'fa-flask',
@@ -711,13 +671,64 @@
     // API基础URL
     const API_BASE_URL = 'http://192.168.1.93:5001';
 
+    // 加载仓库数据
+    function loadLibrariesData() {
+      // 显示加载状态
+      showAlert('正在加载仓库数据...');
+
+      // 调用API获取仓库数据
+      fetch(`${API_BASE_URL}/api/table_count?dbname=yzh_kucun_name`)
+          .then(response => response.json())
+          .then(data => {
+              if (data.success) {
+                  // 转换API返回的数据结构以匹配前端需求
+                  librariesData = [];
+                  data.data.tables_info.forEach(table => {
+                      // 只使用data_sample中的第一个元素
+                      const sample = table.data_sample[0];
+                      librariesData.push({
+                          id: librariesData.length + 1,
+                          name: sample.name || '未指定',
+                          location: sample.weizhi || '未指定',
+                          manager: sample.manager || '未指定',
+                          deviceCount: table.device_count,
+                          // tableName: table.table_name // 保存表名
+                          tableName: table.related_devices_table // 保存表名
+                      });
+                  });
+
+                  // 渲染仓库列表
+                  renderLibrariesList();
+
+                  // 初始加载第一个仓库的设备数据
+                  if (librariesData.length > 0) {
+                      currentLibraryId = librariesData[0].id;
+                      loadLibraryDevices(currentLibraryId);
+
+                      // 更新底部当前仓库信息
+                      const currentLibrary = librariesData[0];
+                      document.getElementById('currentLibraryName').textContent = currentLibrary.name;
+                      document.getElementById('currentLibraryCount').textContent = currentLibrary.deviceCount;
+                  }
+
+                  showAlert('仓库数据加载成功');
+              } else {
+                  showAlert('获取仓库数据失败: ' + data.message);
+              }
+          })
+          .catch(error => {
+              console.error('API请求错误:', error);
+              showAlert('获取仓库数据时发生错误');
+          });
+    }
+
     // DOM加载完成后初始化
     document.addEventListener('DOMContentLoaded', function() {
-      // 渲染仓库列表
-      renderLibrariesList();
+      // 加载仓库数据
+      loadLibrariesData();
 
-      // 初始加载第一个仓库的设备数据
-      loadLibraryDevices(currentLibraryId);
+      // 初始化导航切换
+      initNavigation();
 
       // 初始化导航切换
       initNavigation();
@@ -794,102 +805,147 @@
       document.getElementById('deviceTableContent').classList.add('hidden');
       document.getElementById('deviceEmptyState').classList.add('hidden');
 
-      // 获取该仓库的设备数据
-      const devices = libraryDevices[libraryId] || [];
+      // 找到当前仓库对应的表名
+      const currentLibrary = librariesData.find(l => l.id === libraryId);
+      if (!currentLibrary) {
+          showAlert('未找到选中的仓库');
+          return;
+      }
 
-      // 模拟加载延迟
-      setTimeout(() => {
-        // 渲染设备表格
-        renderDevicesTable(devices);
+      // 新增检查：确保tableName存在且不为空
+  if (!currentLibrary.tableName) {
+      showAlert('仓库表名无效，请联系管理员');
+      document.getElementById('deviceLoadingState').classList.add('hidden');
+      document.getElementById('deviceEmptyState').classList.remove('hidden');
+      return;
+  }
 
-        // 更新统计数据
-        updateStatistics(devices);
+  // 调用API获取设备数据
+  fetch(`${API_BASE_URL}/api/devices?dbname=yzh_repertory01&table_name=${currentLibrary.tableName}&page=1&pageSize=10`)
+  // fetch(`${API_BASE_URL}/api/devices?dbname=yzh_repertory01&table_name=warehouse_testadd02_devices&page=1&pageSize=10`)
+          .then(response => response.json())
+          .then(data => {
+              if (data.success) {
+                  // 转换API返回的数据结构以匹配前端需求
+                  const devices = data.devices.map(device => ({
+                      id: device.id,
+                      name: device.devices_name,
+                      entryTime: device.warehouse_entry_time,
+                      inventory: parseInt(device.inventory),
+                      status: device.status
+                  }));
 
-        // 隐藏加载状态，显示表格
-        document.getElementById('deviceLoadingState').classList.add('hidden');
+                  // 存储设备数据到libraryDevices
+                  if (!window.libraryDevices) {
+                      window.libraryDevices = {};
+                  }
+                  window.libraryDevices[currentLibraryId] = devices;
 
-        if (devices.length === 0) {
-          document.getElementById('deviceEmptyState').classList.remove('hidden');
-        } else {
-          document.getElementById('deviceTableContent').classList.remove('hidden');
-        }
+                  // 渲染设备表格
+                  renderDevicesTable(devices);
 
-        // 更新图表
-        updateCharts(devices);
-      }, 600);
+                  // 更新统计数据
+                  updateStatistics(devices);
+
+                  // 隐藏加载状态，显示表格
+                  document.getElementById('deviceLoadingState').classList.add('hidden');
+
+                  if (devices.length === 0) {
+                      document.getElementById('deviceEmptyState').classList.remove('hidden');
+                  } else {
+                      document.getElementById('deviceTableContent').classList.remove('hidden');
+                  }
+
+                  // 更新图表
+                  updateCharts(devices);
+              } else {
+                  showAlert('获取设备数据失败');
+                  document.getElementById('deviceLoadingState').classList.add('hidden');
+                  document.getElementById('deviceEmptyState').classList.remove('hidden');
+              }
+          })
+          .catch(error => {
+              console.error('API请求错误:', error);
+              showAlert('获取设备数据时发生错误');
+              document.getElementById('deviceLoadingState').classList.add('hidden');
+              document.getElementById('deviceEmptyState').classList.remove('hidden');
+          });
     }
 
     // 渲染设备表格
     function renderDevicesTable(devices) {
-      const tableBody = document.getElementById('devicesTableBody');
-      tableBody.innerHTML = '';
+  const tableBody = document.getElementById('devicesTableBody');
+  tableBody.innerHTML = '';
 
-      if (devices.length === 0) return;
+  if (devices.length === 0) return;
 
-      // 获取当前页码和每页显示数量
-      const pageSize = parseInt(document.getElementById('pageSizeSelector').value) || 10;
-      const currentPage = parseInt(document.getElementById('currentPage')?.textContent) || 1;
-      const startIndex = (currentPage - 1) * pageSize;
-      const endIndex = Math.min(startIndex + pageSize, devices.length);
-      const paginatedDevices = devices.slice(startIndex, endIndex);
+  // 获取当前页码和每页显示数量
+  const pageSize = parseInt(document.getElementById('pageSizeSelector').value) || 10;
+  const currentPage = parseInt(document.getElementById('currentPage')?.textContent) || 1;
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, devices.length);
+  const paginatedDevices = devices.slice(startIndex, endIndex);
 
-      paginatedDevices.forEach((device, index) => {
-        // 状态样式映射
-        const statusStyles = {
-          '正常': 'bg-green-100 text-green-800',
-          '待检修': 'bg-yellow-100 text-yellow-800',
-          '已损坏': 'bg-red-100 text-red-800',
-          '已借出': 'bg-blue-100 text-blue-800'
-        };
+  paginatedDevices.forEach((device, index) => {
+    // 状态样式映射
+    const statusStyles = {
+      '正常': 'bg-green-100 text-green-800',
+      '待检修': 'bg-yellow-100 text-yellow-800',
+      '已损坏': 'bg-red-100 text-red-800',
+      '已借出': 'bg-blue-100 text-blue-800',
+      '充足': 'bg-green-100 text-green-800',  // API返回的新状态
+      '充盈': 'bg-blue-100 text-blue-800',   // API返回的新状态
+      '紧张': 'bg-yellow-100 text-yellow-800' // API返回的新状态
+    };
 
-        // 获取设备对应的图标
-        const iconClass = deviceIcons[device.name] || 'fa-cube';
+    // 获取设备对应的图标
+    const iconClass = deviceIcons[device.name] || 'fa-cube';
 
-        const row = document.createElement('tr');
-        row.className = 'hover:bg-gray-50 transition-colors duration-200 sidebar-item';
-        row.innerHTML = `
-          <th scope="row" class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${startIndex + index + 1}</th>
-          <td class="px-6 py-4 whitespace-nowrap">
-            <div class="flex items-center">
-              <div class="device-icon bg-primary/10 rounded-full text-primary mr-3">
-                <i class="fa ${iconClass}"></i>
-              </div>
-              <div>
-                <div class="text-sm font-medium text-gray-900">${device.name}</div>
-              </div>
-            </div>
-          </td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDateTime(device.entryTime)}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${device.inventory}</td>
-          <td class="px-6 py-4 whitespace-nowrap">
-            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusStyles[device.status]}">
-              ${device.status}
-            </span>
-          </td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-            <button class="text-indigo-600 hover:text-indigo-900 mr-3 transition-colors edit-device-btn" data-id="${device.id}">
-              <i class="fa fa-pencil mr-1"></i>编辑
-            </button>
-            <button class="text-red-600 hover:text-red-900 transition-colors delete-device-btn" data-id="${device.id}">
-              <i class="fa fa-trash mr-1"></i>删除
-            </button>
-          </td>
-        `;
-        tableBody.appendChild(row);
-      });
+    const row = document.createElement('tr');
+    row.className = 'hover:bg-gray-50 transition-colors duration-200 sidebar-item';
+    row.innerHTML = `
+      <th scope="row" class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${device.id}</th>
+      <td class="px-6 py-4 whitespace-nowrap">
+        <div class="flex items-center">
+          <div class="device-icon bg-primary/10 rounded-full text-primary mr-3">
+            <i class="fa ${iconClass}"></i>
+          </div>
+          <div>
+            <div class="text-sm font-medium text-gray-900">${device.name}</div>
+          </div>
+        </div>
+      </td>
+      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDateTime(device.entryTime)}</td>
+      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${device.inventory}</td>
+      <td class="px-6 py-4 whitespace-nowrap">
+        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusStyles[device.status] || 'bg-gray-100 text-gray-800'}">
+          ${device.status}
+        </span>
+      </td>
+      <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+        <button class="text-indigo-600 hover:text-indigo-900 mr-3 transition-colors edit-device-btn" data-id="${device.id}">
+          <i class="fa fa-pencil mr-1"></i>编辑
+        </button>
+        <button class="text-red-600 hover:text-red-900 transition-colors delete-device-btn" data-id="${device.id}">
+          <i class="fa fa-trash mr-1"></i>删除
+        </button>
+      </td>
+    `;
+    tableBody.appendChild(row);
+  });
 
-      // 更新分页信息
-      document.getElementById('deviceStartIndex').textContent = startIndex + 1;
-      document.getElementById('deviceEndIndex').textContent = endIndex;
-      document.getElementById('deviceTotalCount').textContent = devices.length;
+  // 更新分页信息
+  document.getElementById('deviceStartIndex').textContent = startIndex + 1;
+  document.getElementById('deviceEndIndex').textContent = endIndex;
+  document.getElementById('deviceTotalCount').textContent = devices.length;
 
-      // 生成页码
-      generatePagination(devices.length, pageSize, currentPage);
+  // 生成页码
+  generatePagination(devices.length, pageSize, currentPage);
 
-      // 更新分页按钮状态
-      document.getElementById('devicePrevPage').disabled = currentPage === 1;
-      document.getElementById('deviceNextPage').disabled = endIndex >= devices.length;
-    }
+  // 更新分页按钮状态
+  document.getElementById('devicePrevPage').disabled = currentPage === 1;
+  document.getElementById('deviceNextPage').disabled = endIndex >= devices.length;
+}
 
     // 生成分页
     function generatePagination(totalItems, pageSize, currentPage) {
@@ -936,6 +992,13 @@
         pageButton.id = pageNum === currentPage ? 'currentPage' : '';
 
         pageButton.addEventListener('click', function() {
+          // 移除所有按钮的currentPage id
+          document.querySelectorAll('#devicePaginationNumbers button').forEach(btn => {
+            btn.id = '';
+          });
+          // 设置当前按钮的id为currentPage
+          this.id = 'currentPage';
+          // 重新渲染表格
           renderDevicesTable(libraryDevices[currentLibraryId] || []);
         });
 
@@ -1047,72 +1110,160 @@
           return;
         }
 
-        // 查找并更新设备数据
-        const devices = libraryDevices[currentLibraryId] || [];
-        const deviceIndex = devices.findIndex(d => d.id === deviceId);
-
-        if (deviceIndex !== -1) {
-          // 更新设备数据
-          devices[deviceIndex] = {
-            ...devices[deviceIndex],
-            name: deviceName,
-            entryTime: deviceEntryTime ? new Date(deviceEntryTime).toISOString() : devices[deviceIndex].entryTime,
-            inventory: deviceInventory,
-            status: deviceStatus
-          };
-
-          // 重新渲染设备表格
-          renderDevicesTable(devices);
-
-          // 更新统计数据
-          updateStatistics(devices);
-
-          // 更新图表
-          updateCharts(devices);
-
-          // 隐藏模态框
-          hideModal();
-
-          // 显示提示信息
-          showAlert('设备信息已更新');
-        } else {
-          showAlert('未找到该设备信息');
+        // 找到当前仓库
+        const currentLibrary = librariesData.find(l => l.id === currentLibraryId);
+        if (!currentLibrary || !currentLibrary.tableName) {
+          showAlert('仓库信息无效');
+          return;
         }
+
+        // 准备API请求数据
+        const requestData = {
+          "devices_name": deviceName,
+          "warehouse_entry_time": deviceEntryTime ? `${deviceEntryTime}:00` : '',
+          "inventory": deviceInventory,
+          "status": deviceStatus,
+          "product_unm": 1001, // 假设这个值是固定的
+          "operate": "更新操作",
+          "particulars": "这是修改后的详情"
+        };
+
+        // 构建API请求URL
+        const apiUrl = `${API_BASE_URL}/api/update_device/${deviceId}?dbname=yzh_repertory01&table_name=${currentLibrary.tableName}`;
+
+        // 调用API
+        fetch(apiUrl, {
+          method: 'PUT', // 改为PUT方法
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestData)
+        })
+        .then(response => {
+          // 检查响应是否成功
+          if (!response.ok) {
+            throw new Error(`服务器响应错误: ${response.status}`);
+          }
+          // 尝试解析JSON响应
+          return response.json().catch(error => {
+            // 处理非JSON格式响应
+            throw new Error('服务器返回的不是有效的JSON格式');
+          });
+        })
+        .then(data => {
+          if (data.success) {
+            // 查找并更新设备数据
+            const devices = libraryDevices[currentLibraryId] || [];
+            const deviceIndex = devices.findIndex(d => d.id === deviceId);
+
+            if (deviceIndex !== -1) {
+              // 更新设备数据
+              devices[deviceIndex] = {
+                ...devices[deviceIndex],
+                name: deviceName,
+                entryTime: deviceEntryTime ? new Date(deviceEntryTime).toISOString() : devices[deviceIndex].entryTime,
+                inventory: deviceInventory,
+                status: deviceStatus
+              };
+
+              // 重新渲染设备表格
+              renderDevicesTable(devices);
+
+              // 更新统计数据
+              updateStatistics(devices);
+
+              // 更新图表
+              updateCharts(devices);
+
+              // 隐藏模态框
+              hideModal();
+
+              // 显示提示信息
+              showAlert('设备信息已更新');
+            } else {
+              showAlert('未找到该设备信息');
+            }
+          } else {
+            showAlert('更新设备失败: ' + data.message);
+          }
+        })
+        .catch(error => {
+          console.error('API请求错误:', error);
+          showAlert('更新设备时发生错误: ' + error.message);
+        });
       });
     }
 
     // 删除设备
       function deleteDevice(deviceId) {
         if (confirm('确定要删除该设备吗？此操作不可撤销。')) {
-          // 查找并删除设备数据
-          const devices = libraryDevices[currentLibraryId] || [];
-          const deviceIndex = devices.findIndex(d => d.id === deviceId);
-
-          if (deviceIndex !== -1) {
-            // 删除设备
-            devices.splice(deviceIndex, 1);
-
-            // 更新仓库设备数量
-            const libraryIndex = librariesData.findIndex(l => l.id === currentLibraryId);
-            if (libraryIndex !== -1) {
-              librariesData[libraryIndex].deviceCount = devices.length;
-              document.getElementById('currentLibraryCount').textContent = devices.length;
-            }
-
-            // 重新渲染设备表格
-            renderDevicesTable(devices);
-
-            // 更新统计数据
-            updateStatistics(devices);
-
-            // 更新图表
-            updateCharts(devices);
-
-            // 显示提示信息
-            showAlert('设备已成功删除');
-          } else {
-            showAlert('未找到该设备信息');
+          // 找到当前仓库
+          const currentLibrary = librariesData.find(l => l.id === currentLibraryId);
+          if (!currentLibrary || !currentLibrary.tableName) {
+            showAlert('仓库信息无效');
+            return;
           }
+
+          // 构建API请求URL
+          const apiUrl = `${API_BASE_URL}/api/del_devices/${deviceId}?dbname=yzh_repertory01&table_name=${currentLibrary.tableName}`;
+
+          // 调用API
+          fetch(apiUrl, {
+            method: 'PUT', // 改为PUT方法
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          })
+          .then(response => {
+            // 检查响应是否成功
+            if (!response.ok) {
+              throw new Error(`服务器响应错误: ${response.status}`);
+            }
+            // 尝试解析JSON响应
+            return response.json().catch(error => {
+              // 处理非JSON格式响应
+              throw new Error('服务器返回的不是有效的JSON格式');
+            });
+          })
+          .then(data => {
+            if (data.success) {
+              // 查找并删除设备数据
+              const devices = libraryDevices[currentLibraryId] || [];
+              const deviceIndex = devices.findIndex(d => d.id === deviceId);
+
+              if (deviceIndex !== -1) {
+                // 删除设备
+                devices.splice(deviceIndex, 1);
+
+                // 更新仓库设备数量
+                const libraryIndex = librariesData.findIndex(l => l.id === currentLibraryId);
+                if (libraryIndex !== -1) {
+                  librariesData[libraryIndex].deviceCount = devices.length;
+                  document.getElementById('currentLibraryCount').textContent = devices.length;
+                }
+
+                // 重新渲染设备表格
+                renderDevicesTable(devices);
+
+                // 更新统计数据
+                updateStatistics(devices);
+
+                // 更新图表
+                updateCharts(devices);
+
+                // 显示提示信息
+                showAlert('设备已成功删除');
+              } else {
+                showAlert('未找到该设备信息');
+              }
+            } else {
+              showAlert('删除设备失败: ' + data.message);
+            }
+          })
+          .catch(error => {
+            console.error('API请求错误:', error);
+            showAlert('删除设备时发生错误');
+          });
         }
       }
 
@@ -1363,14 +1514,25 @@
 
     // 初始化添加仓库模态框
     function initAddLibraryModal() {
-      const addLibraryBtn = document.getElementById('addLibraryBtn');
-      const modal = document.getElementById('addLibraryModal');
-      const modalContent = document.getElementById('modalContent');
-      const closeModal = document.getElementById('closeLibraryModal');
-      const cancelModal = document.getElementById('cancelLibraryModal');
-      const submitModal = document.getElementById('submitLibrary');
+  const addLibraryBtn = document.getElementById('addLibraryBtn');
+  const modal = document.getElementById('addLibraryModal');
+  const modalContent = document.getElementById('modalContent');
+  const closeModal = document.getElementById('closeLibraryModal');
+  const cancelModal = document.getElementById('cancelLibraryModal');
+  const submitModal = document.getElementById('submitLibrary');
 
-      // 打开模态框
+  // 确保模态框元素存在
+  if (!modal || !modalContent || !closeModal || !cancelModal || !submitModal) {
+    console.error('找不到模态框相关元素');
+    return;
+  }
+
+  // 确保libraryDevices已定义
+  if (typeof libraryDevices === 'undefined') {
+    window.libraryDevices = {};
+  }
+
+  // 打开模态框
       addLibraryBtn.addEventListener('click', function() {
         modal.classList.remove('hidden');
         modal.classList.add('flex');
@@ -1415,41 +1577,75 @@
           return;
         }
 
-        // 创建新仓库ID
-        const newId = Math.max(...librariesData.map(l => l.id)) + 1;
+        // 准备API请求数据
+        const warehouseName = 'testAdd' + (librariesData.length + 1); // 生成类似testAdd05的名称
+        const requestData = {
+          warehouse_name: warehouseName,
+          warehouse_data: [{
+            name: libraryName,
+            location: libraryLocation || '未设置',
+            manager: libraryManager || '未设置'
+          }]
+        };
 
-        // 添加新仓库到数据中
-        librariesData.push({
-          id: newId,
-          name: libraryName,
-          location: libraryLocation || '未设置',
-          manager: libraryManager || '未设置',
-          deviceCount: 0
+        // 调用API
+        fetch(`${API_BASE_URL}/api/add_warehouse?dbname=yzh_kucun_name`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestData)
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            // 创建新仓库ID
+            const newId = Math.max(...librariesData.map(l => l.id)) + 1;
+
+            // 添加新仓库到数据中
+            librariesData.push({
+              id: newId,
+              name: libraryName,
+              location: libraryLocation || '未设置',
+              manager: libraryManager || '未设置',
+              deviceCount: 0
+            });
+
+            // 初始化新仓库的设备数据
+            libraryDevices[newId] = [];
+
+            // 重新渲染仓库列表
+            renderLibrariesList();
+
+            // 切换到新仓库
+            currentLibraryId = newId;
+            loadLibraryDevices(currentLibraryId);
+
+            // 更新底部当前仓库信息
+            const currentLibrary = librariesData.find(l => l.id === newId);
+            document.getElementById('currentLibraryName').textContent = currentLibrary.name;
+            document.getElementById('currentLibraryCount').textContent = currentLibrary.deviceCount;
+
+            // 隐藏模态框
+            hideModal();
+
+            // 重置表单
+            document.getElementById('addLibraryForm').reset();
+
+            // 显示提示信息
+            showAlert(`成功添加新仓库: ${libraryName}`);
+          } else {
+            showAlert('添加仓库失败: ' + data.message);
+            // 即使失败也隐藏模态框
+            hideModal();
+          }
+        })
+        .catch(error => {
+          console.error('API请求错误:', error);
+          showAlert('添加仓库时发生错误');
+          // 即使出错也隐藏模态框
+          hideModal();
         });
-
-        // 初始化新仓库的设备数据
-        libraryDevices[newId] = [];
-
-        // 重新渲染仓库列表
-        renderLibrariesList();
-
-        // 切换到新仓库
-        currentLibraryId = newId;
-        loadLibraryDevices(currentLibraryId);
-
-        // 更新底部当前仓库信息
-        const currentLibrary = librariesData.find(l => l.id === newId);
-        document.getElementById('currentLibraryName').textContent = currentLibrary.name;
-        document.getElementById('currentLibraryCount').textContent = currentLibrary.deviceCount;
-
-        // 隐藏模态框
-        hideModal();
-
-        // 重置表单
-        document.getElementById('addLibraryForm').reset();
-
-        // 显示提示信息
-        showAlert(`成功添加新仓库: ${libraryName}`);
       });
     }
 
